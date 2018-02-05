@@ -14,7 +14,25 @@ def label_loader_64x64_31t(folder_list, file_list):
         for file in file_list:
             imgPath = os.path.join(folder, file)
             t = file.split('_')[3][1:]
-            label = t_list.index(t)
+            label = (t_list.index(t))
+            img_list.append((imgPath, label))
+            if t == -1:
+                print("## Label Loader ERROR")
+                exit(-1)
+    return img_list
+
+def label_loader_64x64_62tp(folder_list, file_list):
+    t_list = list(set([ i.split('_')[3][1:] for i in file_list ]))
+    p_list = list(set([ i.split('_')[2][1:] for i in file_list ]))
+    img_list = []
+    for folder in folder_list:
+        for file in file_list:
+            imgPath = os.path.join(folder, file)
+            t = file.split('_')[3][1:]
+            p = file.split('_')[2][1:]
+            t_label = t_list.index(t)
+            p_label = p_list.index(p)
+            label = (t_label, p_label)
             img_list.append((imgPath, label))
             if t == -1:
                 print("## Label Loader ERROR")

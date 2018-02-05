@@ -9,6 +9,7 @@ from PIL import Image
 
 def label_loader_64x64_31t(folder_list, file_list):
     t_list = list(set([ i.split('_')[3][1:] for i in file_list ]))
+    t_list.sort()
     img_list = []
     for folder in folder_list:
         for file in file_list:
@@ -23,7 +24,9 @@ def label_loader_64x64_31t(folder_list, file_list):
 
 def label_loader_64x64_62tp(folder_list, file_list):
     t_list = list(set([ i.split('_')[3][1:] for i in file_list ]))
+    t_list.sort()
     p_list = list(set([ i.split('_')[2][1:] for i in file_list ]))
+    p_list.sort()
     img_list = []
     for folder in folder_list:
         for file in file_list:

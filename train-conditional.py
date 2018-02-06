@@ -29,8 +29,15 @@ parser.add_argument('--test_num_per_label', type=int, default=5, help='number of
 parser.add_argument('--test_epoch', type=int, default=1, help='number of epoch to be tested (G output)')
 parser.add_argument('--epoch', type=int, default=200, help='number of epoches.')
 parser.add_argument('--label_mode', type=int, help='label mode, 1(31t) or 2(31t x 2p) or 3(object index).')
+parser.add_argument('--name', help='experiment name')
 opt = parser.parse_args()
 print(opt)
+
+if opt.name is None:
+    print('You must choose experiment name, result is in log/$name')
+    exit(-1)
+if not os.path.exists('log/' + opt.name):
+    os.mkdir('log/' + opt.name)
 
 if opt.label_mode is None:
     print('You must choose the label mode!')
@@ -42,7 +49,7 @@ label_num = 0
 
 if opt.label_mode == 1:
     label_loader =  label_loader_64x64_31t
-    label_num_list = (31)
+    label_num_list = [31]
 if opt.label_mode == 2:
     label_loader = label_loader_64x64_62tp
     label_num_list = (31, 2)
@@ -62,11 +69,12 @@ dataset = datasets.ImageFolder(root='exp/64x64_31t',
 '''
 
 dataset = custom_dataset(root='../rendered_chairs',
-                        mat_path='../rendered_chairs/all_chair_names.mat',
+                        names_mat_path='../rendered_chairs/all_chair_names.mat',
+                        img_hdf5_path='../rendered_chairs/all_chair_img.h5',
                         label_loader=label_loader,
                         transform=transforms.Compose([
-                            transforms.Scale(64),
-                            transforms.CenterCrop(64),
+                            #transforms.Scale(64),
+                            #transforms.CenterCrop(64),
                             transforms.ToTensor(),
                             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                         ]))
@@ -226,12 +234,15 @@ real_label = 1
 fake_label = 0
 
 
-fix_onehot_concat = None
+fix_onehot_list = []
 fill_list = []
-total_fix_length = 0
+total_fix_length = opt.test_num_per_label
+for label_num in label_num_list:
+    total_fix_length *= label_num
+
+
 for label_num in label_num_list:
     fix_length = opt.test_num_per_label * label_num
-    total_fix_length += fix_length
     fix_label = torch.FloatTensor(fix_length)
     for i in range(opt.test_num_per_label):
         for j in range(label_num):
@@ -242,15 +253,19 @@ for label_num in label_num_list:
     fix_onehot.scatter_(1, fix, 1)
     fix_onehot = fix_onehot.view(-1, label_num, 1, 1)
     fix_onehot = Variable(fix_onehot).cuda()
-    if fix_onehot_concat is None:
-        fix_onehot_concat = fix_onehot
-    else:
-        fix_onehot_concat = torch.cat([fix_onehot_concat, fix_onehot], 1)
+    fix_onehot_list.append(fix_onehot)
 
     fill = torch.zeros([label_num, label_num, 64, 64])
     for i in range(label_num):
         fill[i, i, :, :] = 1
     fill_list.append(fill)
+
+for i in range(len(fix_onehot_list)):
+    fix_onehot = fix_onehot_list[i]
+    repeat_time = total_fix_length / (opt.test_num_per_label * fix_onehot.shape[1])
+    fix_onehot_list[i] = fix_onehot.repeat(repeat_time, 1, 1, 1)
+
+fix_onehot_concat = torch.cat(fix_onehot_list, 1)
 
 fixed_noise = torch.FloatTensor(total_fix_length, nz, 1, 1).normal_(0, 1)
 #fixed_input = torch.cat([fixed_noise, fix_onehot],1)
@@ -276,38 +291,40 @@ for epoch in range(opt.epoch):
         SND.zero_grad()
         real_cpu, labels_list = data
         batch_size = real_cpu.size(0)
+        #print(labels_list)
+        y_onehot_v_list = []
+        y_fill_list = []
 
-        y_onehot_v_concat = None
-        y_fill_concat = None
+        shape = 1
+        if len(labels_list[0]) > 1:
+            shape = len(labels_list[0])
+        for j in range(shape):
+            labels = labels_list
+            if shape > 1:
+                labels = np.array(labels_list)[:, j]
 
-        for i in range(len(labels_list)):
-            labels = labels_list[i]
-            label_num = label_num_list[i]
-            fill = fill_list[i]
-            label = label_list[i]
-            #if opt.cuda:
-            #    real_cpu = real_cpu.cuda()
+            label_num = label_num_list[j]
+            fill = fill_list[j]
+            #label = label_list[j]
             y = torch.LongTensor(batch_size, 1).copy_(labels)
             y_onehot = torch.zeros(batch_size, label_num)
             y_onehot.scatter_(1, y, 1)
             y_onehot_v = y_onehot.view(batch_size, -1, 1, 1)
             #print(y_onehot_v.size())
             y_onehot_v = Variable(y_onehot_v.cuda())
-
-            if y_onehot_v_concat is None:
-                y_onehot_v_concat = y_onehot_v
-            else:
-                y_onehot_v_concat = torch.cat([y_onehot_v_concat, y_onehot_v], 1)
+            y_onehot_v_list.append(y_onehot_v)
 
             # y_fill: (batch_size, label_num, 64, 64)
             y_fill = fill[labels]
             y_fill = Variable(y_fill.cuda())
+            y_fill_list.append(y_fill)
 
-            if y_fill_concat is None:
-                y_fill_concat = y_fill
-            else:
-                y_fill_concat = torch.cat([y_fill_concat, y_fill], 1)    
-
+        y_onehot_v_concat = y_onehot_v_list[0]
+        if opt.label_mode == 2:
+            y_onehot_v_concat = torch.cat([y_onehot_v_list[0], y_onehot_v_list[1]], 1)
+        y_fill_concat = y_fill_list[0]
+        if opt.label_mode == 2:
+            y_fill_concat = torch.cat([y_fill_list[0], y_fill_list[1]], 1)
         input.resize_(real_cpu.size()).copy_(real_cpu)
         # label.resize_(batch_size).fill_(real_label)
         inputv = Variable(input)
@@ -347,20 +364,20 @@ for epoch in range(opt.epoch):
         if i % 20 == 0:
             print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
                 % (epoch, opt.epoch, i, len(dataloader),
-                    errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))            
+                    errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
 
     if epoch % opt.test_epoch == 0:
         vutils.save_image(real_cpu,
-            '%s/real_samples.png' % 'log',
+            '%s/real_samples.png' % ('log/' + opt.name),
             normalize=True)
         fake = G(fixed_noise, fix_onehot_concat)
         vutils.save_image(fake.data,
-            '%s/fake_samples_epoch_%03d.png' % ('log', epoch),
+            '%s/fake_samples_epoch_%03d.png' % ('log/' + opt.name, epoch),
             normalize=True)
     if epoch % 20 == 0:
         # do checkpointing
-        torch.save(G.state_dict(), '%s/netG_epoch_%d.pth' % ('log', epoch))
-        torch.save(SND.state_dict(), '%s/netD_epoch_%d.pth' % ('log', epoch))
+        torch.save(G.state_dict(), '%s/netG_epoch_%d.pth' % ('log/' + opt.name, epoch))
+        torch.save(SND.state_dict(), '%s/netD_epoch_%d.pth' % ('log/' + opt.name, epoch))
 
 
 

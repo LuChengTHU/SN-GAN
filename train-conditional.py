@@ -329,7 +329,7 @@ if opt.test:
     fixed_noise = Variable(fixed_noise).cuda()
 
 
-    fake = G(test_fixed_noise, test_fix_onehot_concat)
+    fake = G(fixed_noise, fix_onehot_concat)
     vutils.save_image(fake.data,
         '%s/test.png' % ('log/' + opt.name),
         normalize=True)

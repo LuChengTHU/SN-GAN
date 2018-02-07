@@ -30,6 +30,9 @@ parser.add_argument('--test_epoch', type=int, default=1, help='number of epoch t
 parser.add_argument('--epoch', type=int, default=200, help='number of epoches.')
 parser.add_argument('--label_mode', type=int, help='label mode, 1(31t) or 2(31t x 2p) or 3(object index).')
 parser.add_argument('--name', help='experiment name')
+parser.add_argument('--test', action='store_true', help='test mode')
+parser.add_argument('--savepath', help='model save path to load for testing')
+
 opt = parser.parse_args()
 print(opt)
 
@@ -67,20 +70,23 @@ dataset = datasets.ImageFolder(root='exp/64x64_31t',
                            ])
                                       )
 '''
+dataset = None
+dataloader = None
 
-dataset = custom_dataset(root='../rendered_chairs',
-                        names_mat_path='../rendered_chairs/all_chair_names.mat',
-                        img_hdf5_path='../rendered_chairs/all_chair_img.h5',
-                        label_loader=label_loader,
-                        transform=transforms.Compose([
-                            #transforms.Scale(64),
-                            #transforms.CenterCrop(64),
-                            transforms.ToTensor(),
-                            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                        ]))
+if not opt.test:
+    dataset = custom_dataset(root='../rendered_chairs',
+                            names_mat_path='../rendered_chairs/all_chair_names.mat',
+                            img_hdf5_path='../rendered_chairs/all_chair_img.h5',
+                            label_loader=label_loader,
+                            transform=transforms.Compose([
+                                #transforms.Scale(64),
+                                #transforms.CenterCrop(64),
+                                transforms.ToTensor(),
+                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                            ]))
 
-dataloader = torch.utils.data.DataLoader(dataset, batch_size=32,
-                                         shuffle=True, num_workers=int(2))
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=32,
+                                            shuffle=True, num_workers=int(2))
 if opt.manualSeed is None:
     opt.manualSeed = random.randint(1, 10000)
 print("Random Seed: ", opt.manualSeed)
@@ -279,6 +285,58 @@ if opt.cuda:
     SND.cuda()
     criterion.cuda()
 
+
+if opt.test:
+    save_path = opt.savepath
+    G.load_state_dict(torch.load(save_path))
+
+    fix_onehot_list = []
+    fill_list = []
+    test_num_per_label = 1
+    total_fix_length = test_num_per_label
+    for label_num in label_num_list:
+        total_fix_length *= label_num
+
+
+    for label_num in label_num_list:
+        fix_length = test_num_per_label * label_num
+        fix_label = torch.FloatTensor(fix_length)
+        for i in range(test_num_per_label):
+            for j in range(label_num):
+                fix_label[i * label_num + j] = j
+        fix = torch.LongTensor(fix_length, 1).copy_(fix_label)
+        fix_onehot = torch.FloatTensor(fix_length, label_num)
+        fix_onehot.zero_()
+        fix_onehot.scatter_(1, fix, 1)
+        fix_onehot = fix_onehot.view(-1, label_num, 1, 1)
+        fix_onehot = Variable(fix_onehot).cuda()
+        fix_onehot_list.append(fix_onehot)
+
+        fill = torch.zeros([label_num, label_num, 64, 64])
+        for i in range(label_num):
+            fill[i, i, :, :] = 1
+        fill_list.append(fill)
+
+    for i in range(len(fix_onehot_list)):
+        fix_onehot = fix_onehot_list[i]
+        repeat_time = total_fix_length / (test_num_per_label * fix_onehot.shape[1])
+        fix_onehot_list[i] = fix_onehot.repeat(repeat_time, 1, 1, 1)
+
+    fix_onehot_concat = torch.cat(fix_onehot_list, 1)
+
+    fixed_noise = torch.FloatTensor(total_fix_length, nz, 1, 1).normal_(0, 1)
+    #fixed_input = torch.cat([fixed_noise, fix_onehot],1)
+    fixed_noise = Variable(fixed_noise).cuda()
+
+
+    fake = G(test_fixed_noise, test_fix_onehot_concat)
+    vutils.save_image(fake.data,
+        '%s/test.png' % ('log/' + opt.name),
+        normalize=True)
+    exit()
+
+
+
 optimizerG = optim.Adam(G.parameters(), lr=0.0002, betas=(0.5, 0.999))
 optimizerSND = optim.Adam(SND.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
@@ -296,12 +354,12 @@ for epoch in range(opt.epoch):
         y_fill_list = []
 
         shape = 1
-        if len(labels_list[0]) > 1:
-            shape = len(labels_list[0])
+        if opt.label_mode == 2:
+            shape = 2
         for j in range(shape):
             labels = labels_list
             if shape > 1:
-                labels = np.array(labels_list)[:, j]
+                labels = labels_list[j]
 
             label_num = label_num_list[j]
             fill = fill_list[j]
@@ -378,31 +436,4 @@ for epoch in range(opt.epoch):
         # do checkpointing
         torch.save(G.state_dict(), '%s/netG_epoch_%d.pth' % ('log/' + opt.name, epoch))
         torch.save(SND.state_dict(), '%s/netD_epoch_%d.pth' % ('log/' + opt.name, epoch))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

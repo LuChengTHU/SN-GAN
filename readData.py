@@ -16,7 +16,7 @@ def label_loader_64x64_31t(folder_list, filename_list, img_dic):
         for filename in filename_list:
             img = img_dic[folder + '/' + filename]
             t = filename.split('_')[3][1:]
-            label = (t_list.index(t))
+            label = [t_list.index(t)]
             img_list.append((img, label))
             if t == -1:
                 print("## Label Loader ERROR")
@@ -36,7 +36,7 @@ def label_loader_64x64_62tp(folder_list, filename_list, img_dic):
             p = filename.split('_')[2][1:]
             t_label = t_list.index(t)
             p_label = p_list.index(p)
-            label = (t_label, p_label)
+            label = [t_label, p_label]
             img_list.append((img, label))
             if t == -1:
                 print("## Label Loader ERROR")

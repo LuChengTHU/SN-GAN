@@ -224,7 +224,7 @@ class _netD(nn.Module):
             SNConv2d(ndf * 16, ndf * 32, 4, 2, 1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*32) x 4 x 4
-            SNConv2d(ndf * 32, 1, 4, 1, 0, bias=False),            
+            SNConv2d(ndf * 32, 1, 4, 1, 0, bias=False),
             #nn.LeakyReLU(0.2, inplace=True)
             #nn.Softplus()
         )
@@ -245,7 +245,7 @@ print(SND)
 G.apply(weight_filler)
 SND.apply(weight_filler)
 
-input = torch.FloatTensor(opt.batchSize, 3, 64, 64).cuda()
+input = torch.FloatTensor(opt.batchSize, 3, 256, 256).cuda()
 noise = torch.FloatTensor(opt.batchSize, nz, 1, 1).cuda()
 # label_list = []
 # for label_num in label_num_list:
@@ -275,7 +275,7 @@ for label_num in label_num_list:
     fix_onehot = Variable(fix_onehot).cuda()
     fix_onehot_list.append(fix_onehot)
 
-    fill = torch.zeros([label_num, label_num, 64, 64])
+    fill = torch.zeros([label_num, label_num, 256, 256])
     for i in range(label_num):
         fill[i, i, :, :] = 1
     fill_list.append(fill)
@@ -326,7 +326,7 @@ if opt.test:
         fix_onehot = Variable(fix_onehot).cuda()
         fix_onehot_list.append(fix_onehot)
 
-        fill = torch.zeros([label_num, label_num, 64, 64])
+        fill = torch.zeros([label_num, label_num, 256, 256])
         for i in range(label_num):
             fill[i, i, :, :] = 1
         fill_list.append(fill)
@@ -371,7 +371,7 @@ for epoch in range(opt.epoch):
         if opt.label_mode == 2:
             shape = 2
         for j in range(shape):
-            labels = labels_list
+            labels = labels_list[0]
             if shape > 1:
                 labels = labels_list[j]
 
@@ -386,7 +386,7 @@ for epoch in range(opt.epoch):
             y_onehot_v = Variable(y_onehot_v.cuda())
             y_onehot_v_list.append(y_onehot_v)
 
-            # y_fill: (batch_size, label_num, 64, 64)
+            # y_fill: (batch_size, label_num, 256, 256)
             y_fill = fill[labels]
             y_fill = Variable(y_fill.cuda())
             y_fill_list.append(y_fill)

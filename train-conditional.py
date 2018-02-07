@@ -76,7 +76,7 @@ dataloader = None
 if not opt.test:
     dataset = custom_dataset(root='../rendered_chairs',
                             names_mat_path='../rendered_chairs/all_chair_names.mat',
-                            img_hdf5_path='../rendered_chairs/all_chair_img.h5',
+                            img_hdf5_path='../rendered_chairs/all_chair_img_256.h5',
                             label_loader=label_loader,
                             transform=transforms.Compose([
                                 #transforms.Scale(64),
@@ -149,33 +149,41 @@ class _netG(nn.Module):
         super(_netG, self).__init__()
 
         self.convT1 = nn.Sequential(
-            nn.ConvTranspose2d(nz, ngf * 4, 4, 1, 0, bias=False),
-            nn.BatchNorm2d(ngf * 4),
+            nn.ConvTranspose2d(nz, ngf * 16, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(ngf * 16),
             nn.ReLU(True)
         )
         self.convT2 = nn.Sequential(
-            nn.ConvTranspose2d(label_num, ngf * 4, 4, 1, 0, bias=False),
-            nn.BatchNorm2d(ngf * 4),
+            nn.ConvTranspose2d(label_num, ngf * 16, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(ngf * 16),
             nn.ReLU(True)
         )
         self.main = nn.Sequential(
-            # input is Z, going into a convolution
-            # state size. (ngf*8) x 4 x 4
+             # input is Z, going into a convolution
+            # state size. (ngf*32) x 4 x 4
+            nn.ConvTranspose2d(ngf * 32, ngf * 16, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ngf * 16),
+            nn.ReLU(True),
+            # state size. (ngf*16) x 8 x 8
+            nn.ConvTranspose2d(ngf * 16, ngf * 8, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ngf * 8),
+            nn.ReLU(True),
+            # state size. (ngf*8) x 16 x 16
             nn.ConvTranspose2d(ngf * 8, ngf * 4, 4, 2, 1, bias=False),
             nn.BatchNorm2d(ngf * 4),
             nn.ReLU(True),
-            # state size. (ngf*4) x 8 x 8
+            # state size. (ngf*4) x 32 x 32
             nn.ConvTranspose2d(ngf * 4, ngf * 2, 4, 2, 1, bias=False),
             nn.BatchNorm2d(ngf * 2),
             nn.ReLU(True),
-            # state size. (ngf*2) x 16 x 16
+            # state size. (ngf*2) x 64 x 64
             nn.ConvTranspose2d(ngf * 2, ngf, 4, 2, 1, bias=False),
             nn.BatchNorm2d(ngf),
             nn.ReLU(True),
-            # state size. (ngf) x 32 x 32
+            # state size. (ngf) x 128 x 128
             nn.ConvTranspose2d( ngf, nc, 4, 2, 1, bias=False),
             nn.Tanh()
-            # state size. (nc) x 64 x 64
+            # state size. (nc) x 256 x 256
         )
 
     def forward(self, input, input_c):
@@ -194,23 +202,29 @@ class _netD(nn.Module):
         self.conv1_2 = SNConv2d(label_num, ndf/2, 4, 2, 1, bias=False)
         self.lrelu = nn.LeakyReLU(0.2, inplace=True)
         self.main = nn.Sequential(
-            # input is (nc) x 64 x 64
+            # input is (nc) x 256 x 256
             #SNConv2d(nc, ndf, 4, 2, 1, bias=False),
             #nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf) x 32 x 32
+            # state size. (ndf) x 128 x 238
             SNConv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
             #nn.BatchNorm2d(ndf * 2),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*2) x 16 x 16
+            # state size. (ndf*2) x 64 x 64
             SNConv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
             #nn.BatchNorm2d(ndf * 4),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*4) x 8 x 8
+            # state size. (ndf*4) x 32 x 32
             SNConv2d(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
             #nn.BatchNorm2d(ndf * 8),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*8) x 4 x 4
-            SNConv2d(ndf * 8, 1, 4, 1, 0, bias=False),
+            # state size. (ndf*8) x 16 x 16
+            SNConv2d(ndf * 8, ndf * 16, 4, 2, 1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*16) x 8 x 8
+            SNConv2d(ndf * 16, ndf * 32, 4, 2, 1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*32) x 4 x 4
+            SNConv2d(ndf * 32, 1, 4, 1, 0, bias=False),            
             #nn.LeakyReLU(0.2, inplace=True)
             #nn.Softplus()
         )

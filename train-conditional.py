@@ -357,7 +357,7 @@ for epoch in range(opt.epoch + 1):
         if opt.label_mode == 2:
             shape = 2
         for j in range(shape):
-            labels = labels_list
+            labels = labels_list[0]
             if shape > 1:
                 labels = labels_list[j]
 

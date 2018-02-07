@@ -226,8 +226,8 @@ nz = opt.nz
 
 G = _netG(nz, 3, 64)
 SND = _netD(3, 64)
-print(G)
-print(SND)
+#print(G)
+#print(SND)
 G.apply(weight_filler)
 SND.apply(weight_filler)
 
@@ -340,7 +340,7 @@ if opt.test:
 optimizerG = optim.Adam(G.parameters(), lr=0.0002, betas=(0.5, 0.999))
 optimizerSND = optim.Adam(SND.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
-for epoch in range(opt.epoch):
+for epoch in range(opt.epoch + 1):
     for i, data in enumerate(dataloader, 0):
         ############################
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))

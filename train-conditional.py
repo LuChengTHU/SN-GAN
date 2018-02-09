@@ -6,7 +6,7 @@ from torchvision import datasets, transforms
 import torchvision.utils as vutils
 from torch.autograd import Variable
 import torch.utils.data
-from torch.nn.modules import conv
+from torch.nn.modules import conv, Linear
 from torch.nn.modules.utils import _pair, _triple
 import torch.backends.cudnn as cudnn
 
@@ -136,6 +136,19 @@ class SNConv2d(conv._ConvNd):
         return F.conv2d(input, self.weight, self.bias, self.stride,
                         self.padding, self.dilation, self.groups)
 
+
+class SNLinear(Linear):
+    def __init__(self, in_features, out_features, bias=True):
+        super(SNLinear, self).__init__(in_features, out_features, bias)
+        self.u = None
+    def forward(self, input):
+        w_mat = self.weight
+        sigma, _u = max_singular_value(w_mat, self.u)
+        self.u = _u
+        self.weight.data = self.weight.data / sigma
+        return F.linear(input, self.weight, self.bias)
+
+
 def weight_filler(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
@@ -149,31 +162,31 @@ class _netG(nn.Module):
         super(_netG, self).__init__()
 
         self.convT1 = nn.Sequential(
-            nn.ConvTranspose2d(nz, ngf * 4, 4, 1, 0, bias=False),
+            nn.ConvTranspose2d(nz, ngf * 4, 4, 1, 0, bias=True),
             nn.BatchNorm2d(ngf * 4),
             nn.ReLU(True)
         )
         self.convT2 = nn.Sequential(
-            nn.ConvTranspose2d(label_num, ngf * 4, 4, 1, 0, bias=False),
+            nn.ConvTranspose2d(label_num, ngf * 4, 4, 1, 0, bias=True),
             nn.BatchNorm2d(ngf * 4),
             nn.ReLU(True)
         )
         self.main = nn.Sequential(
             # input is Z, going into a convolution
             # state size. (ngf*8) x 4 x 4
-            nn.ConvTranspose2d(ngf * 8, ngf * 4, 4, 2, 1, bias=False),
+            nn.ConvTranspose2d(ngf * 8, ngf * 4, 4, 2, 1, bias=True),
             nn.BatchNorm2d(ngf * 4),
             nn.ReLU(True),
             # state size. (ngf*4) x 8 x 8
-            nn.ConvTranspose2d(ngf * 4, ngf * 2, 4, 2, 1, bias=False),
+            nn.ConvTranspose2d(ngf * 4, ngf * 2, 4, 2, 1, bias=True),
             nn.BatchNorm2d(ngf * 2),
             nn.ReLU(True),
             # state size. (ngf*2) x 16 x 16
-            nn.ConvTranspose2d(ngf * 2, ngf, 4, 2, 1, bias=False),
+            nn.ConvTranspose2d(ngf * 2, ngf, 4, 2, 1, bias=True),
             nn.BatchNorm2d(ngf),
             nn.ReLU(True),
             # state size. (ngf) x 32 x 32
-            nn.ConvTranspose2d( ngf, nc, 4, 2, 1, bias=False),
+            nn.ConvTranspose2d( ngf, nc, 4, 2, 1, bias=True),
             nn.Tanh()
             # state size. (nc) x 64 x 64
         )
@@ -190,28 +203,31 @@ class _netD(nn.Module):
     def __init__(self, nc, ndf):
         super(_netD, self).__init__()
 
-        self.conv1_1 = SNConv2d(nc, ndf/2, 4, 2, 1, bias=False)
-        self.conv1_2 = SNConv2d(label_num, ndf/2, 4, 2, 1, bias=False)
+        self.conv1_1 = SNConv2d(nc, ndf/2, 4, 2, 1, bias=True)
+        self.conv1_2 = SNConv2d(label_num, ndf/2, 4, 2, 1, bias=True)
         self.lrelu = nn.LeakyReLU(0.2, inplace=True)
+        self.snlinear = SNLinear(ndf * 16 * 4 * 4, 1)
         self.main = nn.Sequential(
             # input is (nc) x 64 x 64
             #SNConv2d(nc, ndf, 4, 2, 1, bias=False),
             #nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf) x 32 x 32
-            SNConv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
-            #nn.BatchNorm2d(ndf * 2),
-            nn.LeakyReLU(0.2, inplace=True),
+            SNConv2d(ndf, ndf * 2, 4, 2, 1, bias=True),
+            nn.LeakyReLU(0.1, inplace=True),
             # state size. (ndf*2) x 16 x 16
-            SNConv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
-            #nn.BatchNorm2d(ndf * 4),
-            nn.LeakyReLU(0.2, inplace=True),
+            SNConv2d(ndf * 2, ndf * 4, 3, 1, 1, bias=True),
+            nn.LeakyReLU(0.1, inplace=True),
+            SNConv2d(ndf * 4, ndf * 4, 4, 2, 1, bias=True),
+            nn.LeakyReLU(0.1, inplace=True),
             # state size. (ndf*4) x 8 x 8
-            SNConv2d(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
-            #nn.BatchNorm2d(ndf * 8),
-            nn.LeakyReLU(0.2, inplace=True),
+            SNConv2d(ndf * 4, ndf * 8, 3, 1, 1, bias=True),
+            nn.LeakyReLU(0.1, inplace=True),
+            SNConv2d(ndf * 8, ndf * 8, 4, 2, 1, bias=True),
+            nn.LeakyReLU(0.1, inplace=True),
+
             # state size. (ndf*8) x 4 x 4
-            SNConv2d(ndf * 8, 1, 4, 1, 0, bias=False),
-            #nn.LeakyReLU(0.2, inplace=True)
+            SNConv2d(ndf * 8, ndf * 16, 3, 1, 1, bias=True),
+            nn.LeakyReLU(0.1, inplace=True)
             #nn.Softplus()
         )
 
@@ -220,6 +236,8 @@ class _netD(nn.Module):
         out2 = self.lrelu(self.conv1_2(input_c))
         output = torch.cat([out1, out2], 1)
         output = self.main(output)
+        output = output.view(output.size(0), -1)
+        output = self.snlinear(output)
         return output.view(-1, 1).squeeze(1)
 
 nz = opt.nz
@@ -391,7 +409,7 @@ for epoch in range(opt.epoch + 1):
         #print(output)
         errD_real = torch.mean(F.softplus(-output).mean())
         #errD_real = criterion(output, labelv)
-        errD_real.backward()
+        #errD_real.backward()
         D_x = output.data.mean()
 
         # train with fake
@@ -403,9 +421,10 @@ for epoch in range(opt.epoch + 1):
         output = SND(fake.detach(), y_fill_concat)
         errD_fake = torch.mean(F.softplus(output))
         #errD_fake = criterion(output, labelv)
-        errD_fake.backward()
+        #errD_fake.backward()
         D_G_z1 = output.data.mean()
         errD = errD_real + errD_fake
+        errD.backward()
         optimizerSND.step()
 
         ############################

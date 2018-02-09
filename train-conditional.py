@@ -205,7 +205,7 @@ class _netD(nn.Module):
 
         self.conv1_1 = SNConv2d(nc, ndf/2, 4, 2, 1, bias=True)
         self.conv1_2 = SNConv2d(label_num, ndf/2, 4, 2, 1, bias=True)
-        self.lrelu = nn.LeakyReLU(0.2, inplace=True)
+        self.lrelu = nn.LeakyReLU(0.1, inplace=True)
         self.snlinear = SNLinear(ndf * 16 * 4 * 4, 1)
         self.main = nn.Sequential(
             # input is (nc) x 64 x 64

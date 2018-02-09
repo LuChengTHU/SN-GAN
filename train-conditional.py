@@ -391,7 +391,7 @@ for epoch in range(opt.epoch + 1):
         #print(output)
         errD_real = torch.mean(F.softplus(-output).mean())
         #errD_real = criterion(output, labelv)
-        errD_real.backward()
+        #errD_real.backward()
         D_x = output.data.mean()
 
         # train with fake
@@ -403,9 +403,10 @@ for epoch in range(opt.epoch + 1):
         output = SND(fake.detach(), y_fill_concat)
         errD_fake = torch.mean(F.softplus(output))
         #errD_fake = criterion(output, labelv)
-        errD_fake.backward()
+        #errD_fake.backward()
         D_G_z1 = output.data.mean()
         errD = errD_real + errD_fake
+        errD.backward()
         optimizerSND.step()
 
         ############################

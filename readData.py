@@ -175,4 +175,30 @@ def gen_hdf5_256():
 
     save_dict_to_hdf5(img_dic, '../rendered_chairs/all_chair_img_256.h5')
 
+def gen_hdf5_64():
+    mat_path = '../rendered_chairs/all_chair_names.mat'
+    matfile = sio.loadmat(mat_path)
+    filenames = matfile['folder_names'][0]
+    instnames = matfile['instance_names'][0]
+    folder_list = [
+        os.path.join(
+            os.path.join('../rendered_chairs', str(i[0])),
+            'renders') for i in filenames
+    ]
+    filename_list = [str(i[0]) for i in instnames]
+    img_dic = {}
+    num = 0
+    for folder in folder_list:
+        folder_img_dic = {}
+        for filename in filename_list:
+            imgPath = os.path.join(folder, filename)
+            img = default_loader(imgPath).resize((64, 64), Image.ANTIALIAS)
+            img = np.asarray(img)
+            folder_img_dic[filename] = img
+        img_dic[folder] = folder_img_dic
+        num += 1
+        print("%d: %s" % (num, folder))
+
+    save_dict_to_hdf5(img_dic, '../rendered_chairs/all_chair_img.h5')
+
 

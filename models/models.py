@@ -61,7 +61,7 @@ class _netG(nn.Module):
         self.main = nn.Sequential(
             # input is Z, going into a convolution
             nn.ConvTranspose2d(nz, ngf * 32, 4, 1, 0, bias=True),
-            nn.BatchNorm2d(ngf * 8),
+            nn.BatchNorm2d(ngf * 32),
             nn.ReLU(True),
             # state size. (ngf*32) x 4 x 4
             nn.ConvTranspose2d(ngf * 32, ngf * 16, 4, 2, 1, bias=True),
@@ -104,7 +104,7 @@ class _netD(nn.Module):
             nn.LeakyReLU(0.1, inplace=True),
             SNConv2d(ndf, ndf, 4, 2, 1, bias=True),
             nn.LeakyReLU(0.1, inplace=True),
-            # state size. (ndf) x 128 x 128            
+            # state size. (ndf) x 128 x 128
             SNConv2d(ndf, ndf * 2, 3, 1, 1, bias=True),
             nn.LeakyReLU(0.1, inplace=True),
             SNConv2d(ndf * 2, ndf * 2, 4, 2, 1, bias=True),

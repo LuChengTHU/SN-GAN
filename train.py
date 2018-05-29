@@ -32,6 +32,9 @@ parser.add_argument('--name', help='experiment name')
 parser.add_argument('--test', action='store_true', help='test mode')
 parser.add_argument('--savepath', help='model save path to load for testing')
 
+opt = parser.parse_args()
+print(opt)
+
 if opt.name is None:
     print('You must choose experiment name, result is in log/$name')
     exit(-1)
@@ -63,7 +66,7 @@ if not opt.test:
                                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                             ]))
 
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=32,
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchsize,
                                             shuffle=True, num_workers=int(2))
 if opt.manualSeed is None:
     opt.manualSeed = random.randint(1, 10000)
@@ -124,7 +127,9 @@ for epoch in range(200):
         # train with real
         SND.zero_grad()
         real_cpu = data
+        print(real_cpu.size())
         batch_size = real_cpu.size(0)
+        print("batch_size", batch_size)
         #if opt.cuda:
         #    real_cpu = real_cpu.cuda()
         input.resize_(real_cpu.size()).copy_(real_cpu)
@@ -140,6 +145,7 @@ for epoch in range(200):
         # train with fake
         noise.resize_(batch_size, nz, 1, 1).normal_(0, 1)
         noisev = Variable(noise)
+        print(noisev.size())
         fake = G(noisev)
         #labelv = Variable(label.fill_(fake_label))
         output = SND(fake.detach())

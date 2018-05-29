@@ -95,9 +95,10 @@ class custom_dataset(Dataset):
 
     def __getitem__(self, index):
         img = self.imgs[index]
+        img = Image.fromarray(np.uint8(img))
         if self.transform is not None:
             img = self.transform(img)
-        return ims
+        return img
 
     def __len__(self):
         return len(self.imgs)

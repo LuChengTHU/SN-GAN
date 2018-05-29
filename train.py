@@ -54,13 +54,11 @@ dataset = None
 dataloader = None
 
 if not opt.test:
-    dataset = custom_dataset(root='../rendered_chairs',
-                            names_mat_path='../rendered_chairs/all_chair_names.mat',
-                            img_hdf5_path='../rendered_chairs/all_chair_img_256.h5',
-                            label_loader=label_loader,
+    dataset = custom_dataset(root='data/',
+                            img_path='data/train_1000.npy',
                             transform=transforms.Compose([
-                                #transforms.Scale(64),
-                                #transforms.CenterCrop(64),
+                                transforms.CenterCrop(320),
+                                transforms.Scale(256),
                                 transforms.ToTensor(),
                                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                             ]))
@@ -125,7 +123,7 @@ for epoch in range(200):
         ###########################
         # train with real
         SND.zero_grad()
-        real_cpu, _ = data
+        real_cpu = data
         batch_size = real_cpu.size(0)
         #if opt.cuda:
         #    real_cpu = real_cpu.cuda()
@@ -170,6 +168,10 @@ for epoch in range(200):
             print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
                   % (epoch, opt.epoch, i, len(dataloader),
                      errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
+    if not os.path.exists('log'):
+        os.mkdir("log")
+    if not os.path.exists("log/" + opt.name):
+        os.mkdir("log/" + opt.name)
     if epoch % opt.test_epoch == 0:
         vutils.save_image(real_cpu,
                 '%s/real_samples.png' % 'log/' + opt.name,
@@ -179,9 +181,9 @@ for epoch in range(200):
                 '%s/fake_samples_epoch_%03d.png' % ('log/' + opt.name, epoch),
                 normalize=True)
     if epoch % 20 == 0:
-    # do checkpointing
-    torch.save(G.state_dict(), '%s/netG_epoch_%d.pth' % ('log/' + opt.name, epoch))
-    torch.save(SND.state_dict(), '%s/netD_epoch_%d.pth' % ('log/' + opt.name, epoch))
+        # do checkpointing
+        torch.save(G.state_dict(), '%s/netG_epoch_%d.pth' % ('log/' + opt.name, epoch))
+        torch.save(SND.state_dict(), '%s/netD_epoch_%d.pth' % ('log/' + opt.name, epoch))
 
 
 

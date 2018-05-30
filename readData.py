@@ -95,7 +95,7 @@ class custom_dataset(Dataset):
 
     def __getitem__(self, index):
         img = self.imgs[index]
-        img = img / 255.0
+        #img = img.astype(np.float) / 255.0
         img = Image.fromarray(np.uint8(img))
         if self.transform is not None:
             img = self.transform(img)

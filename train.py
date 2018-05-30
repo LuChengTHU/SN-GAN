@@ -61,7 +61,7 @@ if not opt.test:
                             img_path='data/train_70000.npy',
                             transform=transforms.Compose([
                                 transforms.CenterCrop(320),
-                                transforms.Scale(256),
+                                transforms.Resize(256),
                                 transforms.ToTensor(),
                                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                             ]))
@@ -171,6 +171,15 @@ for epoch in range(200):
             print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
                   % (epoch, opt.epoch, i, len(dataloader),
                      errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
+        if i % 500 == 0:
+            vutils.save_image(real_cpu,
+                    '%s/real_samples.png' % ('log/' + opt.name),
+                    normalize=True)
+            fake = G(fixed_noise)
+            vutils.save_image(fake.data,
+                    '%s/fake_samples_epoch_%03d.png' % ('log/' + opt.name, epoch),
+                    normalize=True)
+
     if not os.path.exists('log'):
         os.mkdir("log")
     if not os.path.exists("log/" + opt.name):
@@ -183,7 +192,7 @@ for epoch in range(200):
         vutils.save_image(fake.data,
                 '%s/fake_samples_epoch_%03d.png' % ('log/' + opt.name, epoch),
                 normalize=True)
-    if epoch % 20 == 0:
+    if epoch % 10 == 0:
         # do checkpointing
         torch.save(G.state_dict(), '%s/netG_epoch_%d.pth' % ('log/' + opt.name, epoch))
         torch.save(SND.state_dict(), '%s/netD_epoch_%d.pth' % ('log/' + opt.name, epoch))

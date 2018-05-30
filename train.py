@@ -16,15 +16,29 @@ import numpy as np
 import matplotlib.pyplot as plt
 from models.models import _netG, _netD
 
+from readData import custom_dataset
+
 parser = argparse.ArgumentParser(description='train SNDCGAN model')
 parser.add_argument('--cuda', action='store_true', help='enables cuda')
-parser.add_argument('--gpu_ids', default=[0,1,2,3], help='gpu ids: e.g. 0,1,2, 0,2.')
+#parser.add_argument('--gpu_ids', default=[0,1,2,3], help='gpu ids: e.g. 0,1,2, 0,2.')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
 parser.add_argument('--n_dis', type=int, default=1, help='discriminator critic iters')
 parser.add_argument('--nz', type=int, default=128, help='dimention of lantent noise')
 parser.add_argument('--batchsize', type=int, default=64, help='training batch size')
+parser.add_argument('--test_num_per_label', type=int, default=5, help='number of test images per label.')
+parser.add_argument('--test_epoch', type=int, default=1, help='number of epoch to be tested (G output)')
+parser.add_argument('--epoch', type=int, default=200, help='number of epoches.')
+parser.add_argument('--name', help='experiment name')
+parser.add_argument('--test', action='store_true', help='test mode')
+parser.add_argument('--savepath', help='model save path to load for testing')
 
 opt = parser.parse_args()
+if opt.name is None:
+    print('You must choose experiment name, result is in log/$name')
+    exit(-1)
+if not os.path.exists('log/' + opt.name):
+    os.mkdir('log/' + opt.name)
+
 print(opt)
 '''
 dataset = datasets.ImageFolder(root='/media/scw4750/25a01ed5-a903-4298-87f2-a5836dcb6888/AIwalker/dataset/msceleb12k/celeba',
@@ -36,6 +50,7 @@ dataset = datasets.ImageFolder(root='/media/scw4750/25a01ed5-a903-4298-87f2-a583
                            ])
                                       )
 '''
+'''
 dataset = datasets.CIFAR10(root='dataset', download=True,
                            transform=transforms.Compose([
                                transforms.Scale(32),
@@ -45,6 +60,20 @@ dataset = datasets.CIFAR10(root='dataset', download=True,
 
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchsize,
                                          shuffle=True, num_workers=int(2))
+'''
+
+if not opt.test:
+    dataset = custom_dataset(root='data/',
+                            img_path='data/train_70000.npy',
+                            transform=transforms.Compose([
+                                transforms.Resize(32),
+                                transforms.CenterCrop(32),
+                                transforms.ToTensor(),
+                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                            ]))
+
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchsize,
+                                            shuffle=True, num_workers=int(2))
 
 if opt.manualSeed is None:
     opt.manualSeed = random.randint(1, 10000)
@@ -54,7 +83,7 @@ torch.manual_seed(opt.manualSeed)
 
 if opt.cuda:
     torch.cuda.manual_seed_all(opt.manualSeed)
-    torch.cuda.set_device(opt.gpu_ids[2])
+    #torch.cuda.set_device(opt.gpu_ids[2])
 
 cudnn.benchmark = True
 
@@ -104,7 +133,7 @@ for epoch in range(200):
         ###########################
         # train with real
         SND.zero_grad()
-        real_cpu, _ = data
+        real_cpu = data
         batch_size = real_cpu.size(0)
         #if opt.cuda:
         #    real_cpu = real_cpu.cuda()
@@ -149,18 +178,19 @@ for epoch in range(200):
             print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
                   % (epoch, 200, i, len(dataloader),
                      errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
-        if i % 100 == 0:
+        if i % 500 == 0:
             vutils.save_image(real_cpu,
-                    '%s/real_samples.png' % 'log',
+                    '%s/real_samples.png' % ('log/' + opt.name),
                     normalize=True)
             fake = G(fixed_noise)
             vutils.save_image(fake.data,
-                    '%s/fake_samples_epoch_%03d.png' % ('log', epoch),
+                    '%s/fake_samples_epoch_%03d.png' % ('log/' + opt.name, epoch),
                     normalize=True)
 
-    # do checkpointing
-torch.save(G.state_dict(), '%s/netG_epoch_%d.pth' % ('log', epoch))
-torch.save(SND.state_dict(), '%s/netD_epoch_%d.pth' % ('log', epoch))
+    if epoch % 10 == 0:
+    	# do checkpointing
+    	torch.save(G.state_dict(), '%s/netG_epoch_%d.pth' % ('log/' + opt.name, epoch))
+    	torch.save(SND.state_dict(), '%s/netD_epoch_%d.pth' % ('log/' + opt.name, epoch))
 
 
 

@@ -85,37 +85,24 @@ def default_loader(path):
 class custom_dataset(Dataset):
     def __init__(self,
                  root,
-                 names_mat_path,
-                 img_hdf5_path,
-                 label_loader,
+                 img_path,
                  transform=None,
                  loader=default_loader):
 
-        matfile = sio.loadmat(names_mat_path)
-        filenames = matfile['folder_names'][0]
-        instnames = matfile['instance_names'][0]
-
-        folder_list = [
-            os.path.join(
-                os.path.join(root, str(i[0])),
-                'renders') for i in filenames
-        ]
-        filename_list = [str(i[0]) for i in instnames]
-        print('Reading to read hdf5 file...')
-        img_dic = load_dict_from_hdf5(img_hdf5_path)
-        print('Read finished!')
-        self.img_list = label_loader(folder_list, filename_list, img_dic)
+        self.imgs = np.load(img_path)
         self.transform = transform
         self.loader = loader
 
     def __getitem__(self, index):
-        img, label = self.img_list[index]
+        img = self.imgs[index]
+        #img = img.astype(np.float) / 255.0
+        img = Image.fromarray(np.uint8(img))
         if self.transform is not None:
             img = self.transform(img)
-        return img, label
+        return img
 
     def __len__(self):
-        return len(self.img_list)
+        return len(self.imgs)
 
 
 

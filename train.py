@@ -66,8 +66,8 @@ if not opt.test:
     dataset = custom_dataset(root='data/',
                             img_path='data/train_70000.npy',
                             transform=transforms.Compose([
-                                transforms.Resize(64),
-                                transforms.CenterCrop(64),
+                                transforms.Resize(128),
+                                transforms.CenterCrop(128),
                                 transforms.ToTensor(),
                                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                             ]))
@@ -105,7 +105,7 @@ print(SND)
 G.apply(weight_filler)
 SND.apply(weight_filler)
 
-input = torch.FloatTensor(opt.batchsize, 3, 64, 64)
+input = torch.FloatTensor(opt.batchsize, 3, 128, 128)
 noise = torch.FloatTensor(opt.batchsize, nz, 1, 1)
 fixed_noise = torch.FloatTensor(opt.batchsize, nz, 1, 1).normal_(0, 1)
 label = torch.FloatTensor(opt.batchsize)

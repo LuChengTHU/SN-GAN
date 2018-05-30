@@ -7,6 +7,7 @@ import os
 from PIL import Image
 import numpy as np
 import h5py
+import dataset
 
 def label_loader_64x64_31t(folder_list, filename_list, img_dic):
     t_list = list(set([ i.split('_')[3][1:] for i in filename_list ]))
@@ -89,14 +90,17 @@ class custom_dataset(Dataset):
                  transform=None,
                  loader=default_loader):
 
-        self.imgs = np.load(img_path)
+        self.imgs,_,__,___ = dataset.load_cifar10(isTf=True)
         self.transform = transform
         self.loader = loader
 
     def __getitem__(self, index):
         img = self.imgs[index]
-        img = img / 255.0
-        img = Image.fromarray(np.uint8(img))
+        #img = img * 255.0
+        img = img.astype(np.uint8)
+
+        img = Image.fromarray(img)
+        #img = img / 255.0
         if self.transform is not None:
             img = self.transform(img)
         return img

@@ -8,7 +8,7 @@ from torch.autograd import Variable
 import torch.utils.data
 import torch.backends.cudnn as cudnn
 
-from readData import custom_dataset, label_loader_64x64_31t, label_loader_64x64_62tp
+from cifar_dataset import custom_dataset, label_loader_64x64_31t, label_loader_64x64_62tp
 
 import random
 import argparse
@@ -60,8 +60,8 @@ if not opt.test:
     dataset = custom_dataset(root='data/',
                             img_path='data/train_70000.npy',
                             transform=transforms.Compose([
-                                transforms.CenterCrop(320),
-                                transforms.Scale(256),
+                                #transforms.CenterCrop(256),
+                                transforms.Resize(256),
                                 transforms.ToTensor(),
                                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                             ]))
@@ -171,6 +171,7 @@ for epoch in range(200):
             print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
                   % (epoch, opt.epoch, i, len(dataloader),
                      errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
+        break
     if not os.path.exists('log'):
         os.mkdir("log")
     if not os.path.exists("log/" + opt.name):
